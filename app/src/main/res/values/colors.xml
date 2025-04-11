@@ -7,4 +7,15 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Цвета приложения -->
+    <color name="primary">#8A2BE2</color>
+    <color name="primary_dark">#6B24B2</color>
+    <color name="primary_light">#AB63FF</color>
+    <color name="accent">#FF9800</color>
+    
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#333333</color>
+    <color name="error">#F44336</color>
+    <color name="success">#4CAF50</color>
 </resources>
