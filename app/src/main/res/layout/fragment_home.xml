@@ -426,7 +426,16 @@
                     <com.github.mikephil.charting.charts.PieChart
                         android:id="@+id/debtToIncomeChart"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp" />
+                        android:layout_height="250dp" />
+                        
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="DTI (Debt-to-Income Ratio) - отношение ежемесячного платежа к доходу"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

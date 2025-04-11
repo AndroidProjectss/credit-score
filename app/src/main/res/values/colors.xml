@@ -26,8 +26,9 @@
     <color name="gauge_background">#EEEEEE</color>
 
     <!-- Chart Colors -->
-    <color name="chart_debt">#FF5722</color>
-    <color name="chart_income">#4CAF50</color>
+    <color name="chart_debt">#F44336</color>     <!-- Красный для платежа по кредиту -->
+    <color name="chart_expenses">#FF9800</color> <!-- Оранжевый для расходов -->
+    <color name="chart_income">#4CAF50</color>   <!-- Зеленый для свободного дохода -->
 
     <!-- Item Colors -->
     <color name="strength_color">#4CAF50</color>

@@ -208,33 +208,53 @@ class HomeFragment : Fragment() {
 
     private fun setupUI(userData: UserData) {
         scoringResult?.let { result ->
-            // Set up score gauge
+            // Добавляем доход и расходы пользователя в результат скоринга,
+            // если они не были установлены в ответе API
+            val updatedResult = if (result.monthlyIncome == null || result.monthlyExpenses == null) {
+                result.copy(
+                    monthlyIncome = userData.monthlyIncome,
+                    monthlyExpenses = userData.monthlyExpenses
+                )
+            } else {
+                result
+            }
+            
+            // Сохраняем обновленный результат
+            scoringResult = updatedResult
+            
+            // Настраиваем спидометр скорингового балла
             binding.scoreGauge.apply {
                 maxSpeed = 100f
-                speedTo(result.overallScore.toFloat(), 1000)
+                speedTo(updatedResult.overallScore.toFloat(), 1000)
                 speedTextSize = 60f
                 unit = "балл"
                 unitTextSize = 24f
             }
 
-            binding.riskLevelText.text = result.creditRiskLevel
-            binding.riskLevelText.setTextColor(getRiskColor(result.creditRiskLevel))
+            // Устанавливаем уровень риска с соответствующим цветом
+            binding.riskLevelText.text = updatedResult.creditRiskLevel
+            binding.riskLevelText.setTextColor(getRiskColor(updatedResult.creditRiskLevel))
 
-            // Устанавливаем данные пользователя
+            // Заполняем основную информацию о заявителе
             binding.fullNameValue.text = userData.fullName
             binding.employmentStatusValue.text = userData.employmentStatus
             binding.incomeValue.text = "${formatNumber(userData.monthlyIncome)} сом"
             binding.creditHistoryValue.text = userData.creditHistory
 
-            binding.maxAmountValue.text = "${formatNumber(result.maxRecommendedAmount)} сом"
-            binding.maxTermValue.text = "${result.maxRecommendedTerm} месяцев"
-            binding.interestRateValue.text = String.format(Locale.US, "%.1f%%", result.recommendedInterestRate)
+            // Заполняем рекомендуемые условия кредита
+            binding.maxAmountValue.text = "${formatNumber(updatedResult.maxRecommendedAmount)} сом"
+            binding.maxTermValue.text = "${updatedResult.maxRecommendedTerm} месяцев"
+            binding.interestRateValue.text = String.format(Locale.US, "%.1f%%", updatedResult.recommendedInterestRate)
 
-            binding.justificationText.text = result.justification
+            // Устанавливаем обоснование решения
+            binding.justificationText.text = updatedResult.justification
 
-            setupStrengthsAndWeaknesses(result)
-            setupRecommendations(result)
-            setupDebtToIncomeChart(result)
+            // Настраиваем списки сильных и слабых сторон, рекомендаций
+            setupStrengthsAndWeaknesses(updatedResult)
+            setupRecommendations(updatedResult)
+            
+            // Настраиваем диаграмму соотношения платежа к доходу
+            setupDebtToIncomeChart(updatedResult)
         }
     }
 
@@ -280,20 +300,23 @@ class HomeFragment : Fragment() {
     private fun setupDebtToIncomeChart(result: SearchQuery) {
         val chart = binding.debtToIncomeChart
 
-        // Используем безопасный вызов и значения по умолчанию
-        val income = result.monthlyIncome ?: 0
-        val expenses = result.monthlyExpenses ?: 0
-        val availableIncome = income - expenses
-
-        // Проверяем, что доступный доход положительный
-        if (availableIncome <= 0) {
-            Log.w("HomeFragment", "Available income is zero or negative, cannot calculate DTI chart.")
-            chart.visibility = View.GONE
+        // Всегда очищаем предыдущие данные в графике
+        chart.clear()
+        
+        // Получаем значения дохода и расходов
+        val income = result.monthlyIncome ?: currentUserData?.monthlyIncome ?: 0
+        val expenses = result.monthlyExpenses ?: currentUserData?.monthlyExpenses ?: 0
+        
+        // Проверяем, что у нас есть данные для отображения
+        if (income <= 0) {
+            Log.w("HomeFragment", "Income is zero or negative, cannot calculate DTI chart.")
+            chart.setNoDataText("Недостаточно данных")
+            chart.setNoDataTextColor(ContextCompat.getColor(requireContext(), R.color.secondary_text))
+            chart.visibility = View.VISIBLE
             return
         }
-        chart.visibility = View.VISIBLE
-
-        // Рассчитываем платеж
+        
+        // Рассчитываем платеж по кредиту
         val estimatedMonthlyPayment = if (result.maxRecommendedAmount > 0 && result.maxRecommendedTerm > 0 && result.recommendedInterestRate >= 0) {
             calculateEstimatedMonthlyPayment(
                 result.maxRecommendedAmount,
@@ -303,46 +326,71 @@ class HomeFragment : Fragment() {
         } else {
             0.0
         }
-
+        
+        // Конвертируем в float для использования в графике
         val paymentFloat = estimatedMonthlyPayment.toFloat()
-        val remainingAfterPaymentFloat = maxOf(0f, availableIncome.toFloat() - paymentFloat)
-
+        
+        // Если платеж слишком мал, установим минимальное значение для видимости на графике
+        val minDisplayValue = income * 0.01f  // 1% от дохода
+        val displayPayment = if (paymentFloat < minDisplayValue && paymentFloat > 0) minDisplayValue else paymentFloat
+        
+        // Создаем данные для графика
         val entries = ArrayList<PieEntry>()
+        
+        // Добавляем платеж (если больше 0)
         if (paymentFloat > 0) {
-            entries.add(PieEntry(paymentFloat, "Платеж по кредиту"))
+            entries.add(PieEntry(displayPayment, "Платеж по кредиту"))
         }
-        if (remainingAfterPaymentFloat > 0) {
-            entries.add(PieEntry(remainingAfterPaymentFloat, "Доступный доход"))
-        } else if (paymentFloat <= 0) {
-            entries.add(PieEntry(availableIncome.toFloat(), "Доступный доход"))
+        
+        // Добавляем другие расходы (если больше 0)
+        if (expenses > 0) {
+            entries.add(PieEntry(expenses.toFloat(), "Расходы"))
         }
-
+        
+        // Рассчитываем оставшийся доход после платежа и расходов
+        val remainingIncome = maxOf(0f, income.toFloat() - paymentFloat - expenses.toFloat())
+        
+        // Добавляем оставшийся доход (если больше 0)
+        if (remainingIncome > 0) {
+            entries.add(PieEntry(remainingIncome, "Свободный доход"))
+        }
+        
+        // Если нет данных, показываем весь доход
         if (entries.isEmpty()) {
-            Log.w("HomeFragment", "No entries for PieChart.")
-            chart.visibility = View.GONE
-            return
+            entries.add(PieEntry(income.toFloat(), "Доход"))
         }
-
+        
+        // Создаем набор данных
         val dataSet = PieDataSet(entries, "")
+        
+        // Устанавливаем цвета для разных секторов
         dataSet.colors = listOf(
-            ContextCompat.getColor(requireContext(), R.color.chart_debt),
-            ContextCompat.getColor(requireContext(), R.color.chart_income)
+            ContextCompat.getColor(requireContext(), R.color.chart_debt),      // Платеж по кредиту - красный
+            ContextCompat.getColor(requireContext(), R.color.chart_expenses),  // Расходы - оранжевый
+            ContextCompat.getColor(requireContext(), R.color.chart_income)     // Свободный доход - зеленый
         )
+        
+        // Добавляем отступ между секторами для лучшей читаемости
         dataSet.sliceSpace = 2f
-
+        
+        // Создаем объект данных и устанавливаем форматтер для отображения процентов
         val data = PieData(dataSet)
         data.setValueFormatter(PercentFormatter(chart))
-        data.setValueTextSize(12f)
-        data.setValueTextColor(Color.BLACK)
-
+        data.setValueTextSize(14f)
+        data.setValueTextColor(Color.WHITE)
+        
+        // Настраиваем внешний вид графика
         chart.apply {
             this.data = data
             description.isEnabled = false
+            
+            // Настраиваем отверстие в центре и прозрачный круг
             isDrawHoleEnabled = true
             setHoleColor(Color.TRANSPARENT)
             holeRadius = 50f
             transparentCircleRadius = 55f
-
+            
+            // Настраиваем легенду
             legend.isEnabled = true
             legend.verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.BOTTOM
             legend.horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
@@ -350,20 +398,30 @@ class HomeFragment : Fragment() {
             legend.setDrawInside(false)
             legend.textSize = 12f
             legend.textColor = ContextCompat.getColor(requireContext(), R.color.primary_text)
-
-            setEntryLabelColor(Color.BLACK)
-            setEntryLabelTextSize(10f)
-            setUsePercentValues(true)
-
+            
+            // Настраиваем подписи к секторам
+            setDrawEntryLabels(false)  // Отключаем подписи на секторах для чистоты
+            setUsePercentValues(true)  // Показываем проценты
+            
+            // Устанавливаем текст в центре
             setDrawCenterText(true)
-            val dtiPercentage = if (income > 0) (paymentFloat / income) * 100 else 0f
+            val dtiPercentage = if (income > 0) (paymentFloat / income.toFloat()) * 100 else 0f
             centerText = String.format(Locale.US, "DTI\n%.1f%%", dtiPercentage)
             setCenterTextSize(16f)
             setCenterTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text))
-
+            
+            // Добавляем анимацию для красивого отображения
             animateY(1400, Easing.EaseInOutQuad)
+            
+            // Отключаем взаимодействие с графиком для предотвращения ошибок
+            setTouchEnabled(false)
+            
+            // Обновляем график
             invalidate()
         }
+        
+        // Показываем график
+        chart.visibility = View.VISIBLE
     }
 
     private fun calculateEstimatedMonthlyPayment(
