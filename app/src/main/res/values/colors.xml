@@ -7,4 +7,30 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+
+    <!-- App Theme Colors -->
+    <color name="background_color">#F5F5F5</color>
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
+
+    <!-- Credit Score Risk Colors -->
+    <color name="risk_low">#4CAF50</color>
+    <color name="risk_medium">#FFC107</color>
+    <color name="risk_high">#FF5722</color>
+    <color name="risk_very_high">#F44336</color>
+
+    <!-- Gauge Colors -->
+    <color name="gauge_background">#EEEEEE</color>
+
+    <!-- Chart Colors -->
+    <color name="chart_debt">#FF5722</color>
+    <color name="chart_income">#4CAF50</color>
+
+    <!-- Item Colors -->
+    <color name="strength_color">#4CAF50</color>
+    <color name="weakness_color">#F44336</color>
+    <color name="recommendation_color">#2196F3</color>
 </resources>
