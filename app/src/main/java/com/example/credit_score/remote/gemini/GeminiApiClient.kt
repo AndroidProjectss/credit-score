@@ -44,36 +44,27 @@ class GeminiApiClient(private val apiKey: String) {
     interface GeminiApiListener {
         fun onSuccess(passportData: PassportData)
         fun onError(e: Exception)
-        // Метод с реализацией по умолчанию для обратной совместимости
         fun onFraudDetected(message: String) {
-            // По умолчанию просто логируем сообщение о мошенничестве
             Log.w(TAG, "Fraud detected: $message")
-            // И обрабатываем как обычную ошибку
             onError(Exception("Fraud detected: $message"))
         }
     }
 
-    // Метод для анализа обеих сторон паспорта с проверкой на мошенничество
     fun analyzePassportBothSides(frontBitmap: Bitmap, backBitmap: Bitmap, listener: GeminiApiListener) {
         try {
-            // Convert bitmaps to base64
             val base64FrontImage = bitmapToBase64(frontBitmap)
             val base64BackImage = bitmapToBase64(backBitmap)
 
-            // Сначала проверяем изображения на признаки мошенничества
             checkForFraud(frontBitmap, backBitmap) { isFraud, fraudMessage ->
                 if (isFraud) {
                     listener.onFraudDetected(fraudMessage)
                     return@checkForFraud
                 }
 
-                // Если проверка пройдена, продолжаем обычный анализ
-                // Create the request body as JSON
                 val requestJson = buildPassportAnalysisRequestBothSides(base64FrontImage, base64BackImage)
                 val requestBody = requestJson.toString()
                     .toRequestBody("application/json".toMediaTypeOrNull())
 
-                // Make API call
                 service.generateContent(apiKey, requestBody).enqueue(object : Callback<GeminiResponse> {
                     override fun onResponse(call: Call<GeminiResponse>, response: Response<GeminiResponse>) {
                         if (response.isSuccessful && response.body() != null) {
@@ -108,25 +99,19 @@ class GeminiApiClient(private val apiKey: String) {
         }
     }
 
-    // Обновляем оригинальный метод для совместимости, добавляя проверку на мошенничество
     fun analyzePassport(bitmap: Bitmap, listener: GeminiApiListener) {
         try {
-            // Сначала проверяем изображение на признаки мошенничества
             checkForFraud(bitmap, null) { isFraud, fraudMessage ->
                 if (isFraud) {
                     listener.onFraudDetected(fraudMessage)
                     return@checkForFraud
                 }
 
-                // Если проверка пройдена, продолжаем обычный анализ
                 val base64Image = bitmapToBase64(bitmap)
-
-                // Create the request body as JSON
                 val requestJson = buildPassportAnalysisRequest(base64Image)
                 val requestBody = requestJson.toString()
                     .toRequestBody("application/json".toMediaTypeOrNull())
 
-                // Make API call
                 service.generateContent(apiKey, requestBody).enqueue(object : Callback<GeminiResponse> {
                     override fun onResponse(call: Call<GeminiResponse>, response: Response<GeminiResponse>) {
                         if (response.isSuccessful && response.body() != null) {
@@ -161,23 +146,18 @@ class GeminiApiClient(private val apiKey: String) {
         }
     }
 
-    // Метод для проверки на мошенничество перед отправкой в API - СИЛЬНО УПРОЩЕННЫЙ
     private fun checkForFraud(
         frontBitmap: Bitmap,
         backBitmap: Bitmap?,
         callback: (Boolean, String) -> Unit
     ) {
         try {
-            // Convert bitmaps to base64
             val base64FrontImage = bitmapToBase64(frontBitmap)
             val base64BackImage = backBitmap?.let { bitmapToBase64(it) }
-
-            // Создаем запрос на проверку мошенничества
             val requestJson = buildFraudDetectionRequest(base64FrontImage, base64BackImage)
             val requestBody = requestJson.toString()
                 .toRequestBody("application/json".toMediaTypeOrNull())
 
-            // Make API call to check for fraud
             service.generateContent(apiKey, requestBody).enqueue(object : Callback<GeminiResponse> {
                 override fun onResponse(call: Call<GeminiResponse>, response: Response<GeminiResponse>) {
                     if (response.isSuccessful && response.body() != null) {
@@ -213,13 +193,9 @@ class GeminiApiClient(private val apiKey: String) {
 
     private fun buildFraudDetectionRequest(base64FrontImage: String, base64BackImage: String?): JsonObject {
         val gson = Gson()
-
-        // Create the text instruction part
         val textPart = JsonObject().apply {
             addProperty("text", buildFraudDetectionPrompt())
         }
-
-        // Create the front image part with inline_data
         val frontImagePart = JsonObject().apply {
             val inlineData = JsonObject().apply {
                 addProperty("mime_type", "image/jpeg")
@@ -227,12 +203,8 @@ class GeminiApiClient(private val apiKey: String) {
             }
             add("inline_data", inlineData)
         }
-
-        // Create contents array with parts
         val contentsParts = JsonObject()
         val partsList = mutableListOf(textPart, frontImagePart)
-
-        // Add back image if available
         if (base64BackImage != null) {
             val backImagePart = JsonObject().apply {
                 val inlineData = JsonObject().apply {
@@ -243,17 +215,12 @@ class GeminiApiClient(private val apiKey: String) {
             }
             partsList.add(backImagePart)
         }
-
         contentsParts.add("parts", gson.toJsonTree(partsList))
-
-        // Build the complete request
         val request = JsonObject()
         request.add("contents", gson.toJsonTree(listOf(contentsParts)))
-
         return request
     }
 
-    // УПРОЩЕННЫЙ ПРОМПТ для проверки мошенничества
     private fun buildFraudDetectionPrompt(): String {
         return """
             Проанализируй предоставленное изображение и определи только, является ли это фотографией реального паспорта Кыргызской Республики или это фотография экрана устройства, на котором отображается паспорт.
@@ -280,18 +247,14 @@ class GeminiApiClient(private val apiKey: String) {
     }
 
     private fun resizeBitmapIfNeeded(bitmap: Bitmap, maxSize: Int = 1024): Bitmap {
-        // Resize bitmap if it's too large to avoid API limits
         val width = bitmap.width
         val height = bitmap.height
-
         if (width <= maxSize && height <= maxSize) {
             return bitmap
         }
-
         val ratio = width.toFloat() / height.toFloat()
         val newWidth: Int
         val newHeight: Int
-
         if (width > height) {
             newWidth = maxSize
             newHeight = (maxSize / ratio).toInt()
@@ -299,19 +262,14 @@ class GeminiApiClient(private val apiKey: String) {
             newHeight = maxSize
             newWidth = (maxSize * ratio).toInt()
         }
-
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
 
     private fun buildPassportAnalysisRequestBothSides(base64FrontImage: String, base64BackImage: String): JsonObject {
         val gson = Gson()
-
-        // Упрощенные инструкции - убраны строгие проверки мошенничества
         val textPart = JsonObject().apply {
             addProperty("text", buildSimplifiedPassportAnalysisPromptBothSides())
         }
-
-        // Create the front image part with inline_data
         val frontImagePart = JsonObject().apply {
             val inlineData = JsonObject().apply {
                 addProperty("mime_type", "image/jpeg")
@@ -319,8 +277,6 @@ class GeminiApiClient(private val apiKey: String) {
             }
             add("inline_data", inlineData)
         }
-
-        // Create the back image part with inline_data
         val backImagePart = JsonObject().apply {
             val inlineData = JsonObject().apply {
                 addProperty("mime_type", "image/jpeg")
@@ -328,27 +284,18 @@ class GeminiApiClient(private val apiKey: String) {
             }
             add("inline_data", inlineData)
         }
-
-        // Create contents array with all parts
         val contentsParts = JsonObject()
         contentsParts.add("parts", gson.toJsonTree(listOf(textPart, frontImagePart, backImagePart)))
-
-        // Build the complete request
         val request = JsonObject()
         request.add("contents", gson.toJsonTree(listOf(contentsParts)))
-
         return request
     }
 
     private fun buildPassportAnalysisRequest(base64Image: String): JsonObject {
         val gson = Gson()
-
-        // Упрощенные инструкции - убраны строгие проверки мошенничества
         val textPart = JsonObject().apply {
             addProperty("text", buildSimplifiedPassportAnalysisPrompt())
         }
-
-        // Create the image part with inline_data
         val imagePart = JsonObject().apply {
             val inlineData = JsonObject().apply {
                 addProperty("mime_type", "image/jpeg")
@@ -356,19 +303,13 @@ class GeminiApiClient(private val apiKey: String) {
             }
             add("inline_data", inlineData)
         }
-
-        // Create contents array with both parts
         val contentsParts = JsonObject()
         contentsParts.add("parts", gson.toJsonTree(listOf(textPart, imagePart)))
-
-        // Build the complete request
         val request = JsonObject()
         request.add("contents", gson.toJsonTree(listOf(contentsParts)))
-
         return request
     }
 
-    // УПРОЩЕННЫЕ ПРОМПТЫ без лишних проверок
     private fun buildSimplifiedPassportAnalysisPromptBothSides(): String {
         return """
             Проанализируй эти два изображения паспорта Кыргызской Республики (лицевая и обратная стороны) и определи следующие данные:
@@ -436,7 +377,6 @@ class GeminiApiClient(private val apiKey: String) {
     }
 }
 
-// Класс для хранения метаданных об устройстве для дополнительной проверки
 data class DeviceMetadata(
     val deviceModel: String,
     val osVersion: String,
