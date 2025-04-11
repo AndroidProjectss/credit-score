@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Яркие цвета для темной темы -->
+    <color name="strength_color">#4CAF50</color>
+    <color name="weakness_color">#F44336</color>
+    <color name="recommendation_color">#2196F3</color>
+    
+    <!-- Текстовые цвета для темной темы -->
+    <color name="primary_text">@color/white</color>
+    <color name="secondary_text">#CCCCCC</color>
+</resources>

@@ -2,7 +2,9 @@ package com.example.credit_score.ui.home
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log // Добавим для отладки, если понадобится
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,10 +13,12 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.credit_score.R
+import com.example.credit_score.data.MockDatabase
+import com.example.credit_score.data.UserData
 import com.example.credit_score.databinding.FragmentHomeBinding
 import com.example.credit_score.remote.gemini.SearchQuery
-import com.example.creditscore.remote.gemini.CreditApplicationData
 import com.example.creditscore.remote.gemini.GeminiApiClientScoring
+import com.example.creditscore.remote.gemini.CreditApplicationData
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
@@ -28,8 +32,8 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var scoringResult: SearchQuery? = null
-    // Предполагаем, что GeminiApiClientScoring и SearchQuery определены где-то
     private lateinit var geminiApiClient: GeminiApiClientScoring
+    private var currentUserData: UserData? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,53 +47,86 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Gemini API client with your API key
-        // Убедись, что ключ R.string.gemini_api_key существует в strings.xml
+        // Initialize Gemini API client with API key
         val apiKey = getString(R.string.gemini_api_key)
         geminiApiClient = GeminiApiClientScoring(apiKey)
 
+        setupInputValidation()
         setupListeners()
+    }
+    
+    private fun setupInputValidation() {
+        // Валидация ИНН - должен быть 14 символов
+        binding.innInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val inn = s.toString()
+                if (inn.length == 14) {
+                    // Проверяем, есть ли ИНН в базе данных
+                    val userData = MockDatabase.getUserByInn(inn)
+                    if (userData != null) {
+                        currentUserData = userData
+                        Toast.makeText(context, "Пользователь найден: ${userData.fullName}", Toast.LENGTH_SHORT).show()
+                    } else {
+                        currentUserData = null
+                        Toast.makeText(context, "Пользователь с таким ИНН не найден", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    currentUserData = null
+                }
+            }
+        })
     }
 
     private fun setupListeners() {
         binding.btnAnalyze.setOnClickListener {
-            // Show loading state
+            // Валидация введенных данных
+            if (!validateInputs()) {
+                return@setOnClickListener
+            }
+
+            // Показать состояние загрузки
             binding.progressBar.visibility = View.VISIBLE
             binding.btnAnalyze.isEnabled = false
-            // Скрываем ScrollView с результатами
+            binding.inputCardView.visibility = View.GONE
             binding.resultsScrollView.visibility = View.GONE
 
-            val sampleData = createSampleCreditApplication()
+            val userData = currentUserData ?: return@setOnClickListener
+            
+            // Получаем данные из формы
+            val requestedAmount = binding.amountInput.text.toString().toIntOrNull() ?: 0
+            val requestedTerm = binding.termInput.text.toString().toIntOrNull() ?: 0
+            val purpose = binding.purposeInput.text.toString()
+
+            val applicationData = createCreditApplicationFromUserData(userData, requestedAmount, requestedTerm, purpose)
 
             geminiApiClient.analyzeCreditApplication(
-                sampleData,
+                applicationData,
                 object : GeminiApiClientScoring.GeminiApiListener {
                     override fun onSuccess(searchQuery: SearchQuery) {
                         // Важно! Обновления UI должны быть в главном потоке
                         activity?.runOnUiThread {
                             binding.progressBar.visibility = View.GONE
-                            // Кнопку можно скрыть, т.к. результаты показаны
-                            // binding.btnAnalyze.isEnabled = true // Уже не нужно, если кнопка скрывается
-                            binding.btnAnalyze.visibility = View.GONE // Скрываем кнопку
-
+                            binding.inputCardView.visibility = View.GONE
+                            
                             scoringResult = searchQuery
                             // Показываем ScrollView с результатами
                             binding.resultsScrollView.visibility = View.VISIBLE
-                            setupUI()
+                            setupUI(userData)
                         }
                     }
 
                     override fun onError(e: Exception) {
                         activity?.runOnUiThread {
                             binding.progressBar.visibility = View.GONE
-                            binding.btnAnalyze.isEnabled = true // Оставляем кнопку доступной для повторной попытки
-                            // Можно также показать btnAnalyze снова, если он был скрыт
-                            // binding.btnAnalyze.visibility = View.VISIBLE
+                            binding.btnAnalyze.isEnabled = true
+                            binding.inputCardView.visibility = View.VISIBLE
 
-                            Log.e("HomeFragment", "API Error", e) // Логируем ошибку для отладки
+                            Log.e("HomeFragment", "API Error", e)
                             Toast.makeText(
                                 requireContext(),
-                                "Ошибка анализа: ${e.message}", // Более информативное сообщение
+                                "Ошибка анализа: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -97,48 +134,100 @@ class HomeFragment : Fragment() {
                 }
             )
         }
+        
+        binding.btnNewRequest.setOnClickListener {
+            // Сбрасываем форму и показываем ее снова
+            resetForm()
+            binding.inputCardView.visibility = View.VISIBLE
+            binding.resultsScrollView.visibility = View.GONE
+            binding.btnAnalyze.isEnabled = true
+            currentUserData = null
+        }
+    }
+    
+    private fun validateInputs(): Boolean {
+        // Проверка ИНН
+        if (currentUserData == null) {
+            Toast.makeText(context, "Пользователь с таким ИНН не найден", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        
+        // Проверка суммы
+        val amount = binding.amountInput.text.toString().toIntOrNull()
+        if (amount == null || amount <= 0) {
+            Toast.makeText(context, "Введите корректную сумму кредита", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        
+        // Проверка срока
+        val term = binding.termInput.text.toString().toIntOrNull()
+        if (term == null || term <= 0 || term > 120) {
+            Toast.makeText(context, "Введите корректный срок кредита (1-120 месяцев)", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        
+        // Проверка цели
+        if (binding.purposeInput.text.toString().isBlank()) {
+            Toast.makeText(context, "Укажите цель кредита", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        
+        return true
+    }
+    
+    private fun resetForm() {
+        binding.innInput.text?.clear()
+        binding.amountInput.text?.clear()
+        binding.termInput.text?.clear()
+        binding.purposeInput.text?.clear()
     }
 
-    private fun createSampleCreditApplication(): CreditApplicationData {
+    private fun createCreditApplicationFromUserData(
+        userData: UserData,
+        requestedAmount: Int,
+        requestedTerm: Int,
+        purpose: String
+    ): CreditApplicationData {
         return CreditApplicationData(
-            fullName = "Азамат Алиев",
-            passportData = "AN 1234567",
-            registrationAddress = "г. Бишкек, ул. Чуй, д. 123, кв. 45",
-            workExperience = 5,
-            monthlyIncome = 35000,
-            monthlyExpenses = 15000,
-            hasTaxDebt = false,
-            employmentStatus = "Официально трудоустроен",
-            familyStatus = "Женат, 2 детей",
-            requestedAmount = 200000,
-            requestedTerm = 24,
-            purpose = "Бытовая техника",
-            creditHistory = "Положительная, без просрочек"
+            fullName = userData.fullName,
+            passportData = userData.passportData,
+            registrationAddress = userData.registrationAddress,
+            workExperience = userData.workExperience,
+            monthlyIncome = userData.monthlyIncome,
+            monthlyExpenses = userData.monthlyExpenses,
+            hasTaxDebt = userData.hasTaxDebt,
+            taxDebtAmount = userData.taxDebtAmount,
+            employmentStatus = userData.employmentStatus,
+            familyStatus = userData.familyStatus,
+            requestedAmount = requestedAmount,
+            requestedTerm = requestedTerm,
+            purpose = purpose,
+            creditHistory = userData.creditHistory
         )
     }
 
-    private fun setupUI() {
+    private fun setupUI(userData: UserData) {
         scoringResult?.let { result ->
-            // Set up score gauge using correct methods/properties
+            // Set up score gauge
             binding.scoreGauge.apply {
-                // Убедись, что overallScore - это число от 0 до 100 (или какой maxSpeed установлен)
-                maxSpeed = 100f // Устанавливаем максимум шкалы
-                speedTo(result.overallScore.toFloat(), 1000) // Устанавливаем значение с анимацией (1000ms)
-                // setProgressTextFormat не существует, текст настраивается иначе
-                speedTextSize = 60f // Размер текста значения скорости (балла)
-                unit = "балл"      // Текст единицы измерения
-                unitTextSize = 24f // Размер текста единицы измерения
-                // Дополнительные настройки для красоты, если нужно
-                // tickNumber = 11 // Количество делений
-                // tickPadding = 10f
+                maxSpeed = 100f
+                speedTo(result.overallScore.toFloat(), 1000)
+                speedTextSize = 60f
+                unit = "балл"
+                unitTextSize = 24f
             }
 
             binding.riskLevelText.text = result.creditRiskLevel
             binding.riskLevelText.setTextColor(getRiskColor(result.creditRiskLevel))
 
+            // Устанавливаем данные пользователя
+            binding.fullNameValue.text = userData.fullName
+            binding.employmentStatusValue.text = userData.employmentStatus
+            binding.incomeValue.text = "${formatNumber(userData.monthlyIncome)} сом"
+            binding.creditHistoryValue.text = userData.creditHistory
+
             binding.maxAmountValue.text = "${formatNumber(result.maxRecommendedAmount)} сом"
             binding.maxTermValue.text = "${result.maxRecommendedTerm} месяцев"
-            // Убедимся, что ставка форматируется корректно (например, 18.5)
             binding.interestRateValue.text = String.format(Locale.US, "%.1f%%", result.recommendedInterestRate)
 
             binding.justificationText.text = result.justification
@@ -153,25 +242,22 @@ class HomeFragment : Fragment() {
         binding.strengthsContainer.removeAllViews()
         binding.weaknessesContainer.removeAllViews()
 
-        // Используем R.layout.* для разметки элемента списка
         result.strengths.forEach { strength ->
             val strengthView = LayoutInflater.from(context).inflate(
-                R.layout.item_strength, // ИСПРАВЛЕНО: R.layout вместо R.drawable
+                R.layout.item_strength,
                 binding.strengthsContainer,
                 false
             )
-            // Убедись, что ID R.id.strengthText существует в item_strength.xml
             strengthView.findViewById<TextView>(R.id.strengthText)?.text = strength
             binding.strengthsContainer.addView(strengthView)
         }
 
         result.weaknesses.forEach { weakness ->
             val weaknessView = LayoutInflater.from(context).inflate(
-                R.layout.item_weakness, // ИСПРАВЛЕНО: R.layout вместо R.drawable
+                R.layout.item_weakness,
                 binding.weaknessesContainer,
                 false
             )
-            // Убедись, что ID R.id.weaknessText существует в item_weakness.xml
             weaknessView.findViewById<TextView>(R.id.weaknessText)?.text = weakness
             binding.weaknessesContainer.addView(weaknessView)
         }
@@ -182,11 +268,10 @@ class HomeFragment : Fragment() {
 
         result.recommendations.forEach { recommendation ->
             val recommendationView = LayoutInflater.from(context).inflate(
-                R.layout.item_recommendation, // ИСПРАВЛЕНО: R.layout вместо R.drawable
+                R.layout.item_recommendation,
                 binding.recommendationsContainer,
                 false
             )
-            // Убедись, что ID R.id.recommendationText существует в item_recommendation.xml
             recommendationView.findViewById<TextView>(R.id.recommendationText)?.text = recommendation
             binding.recommendationsContainer.addView(recommendationView)
         }
@@ -200,18 +285,15 @@ class HomeFragment : Fragment() {
         val expenses = result.monthlyExpenses ?: 0
         val availableIncome = income - expenses
 
-        // Проверяем, что доступный доход положительный перед расчетом
+        // Проверяем, что доступный доход положительный
         if (availableIncome <= 0) {
             Log.w("HomeFragment", "Available income is zero or negative, cannot calculate DTI chart.")
-            chart.visibility = View.GONE // Скрываем чарт, если данных недостаточно
-            // Можно также показать сообщение пользователю
-            // binding.dtiInfoText.text = "Недостаточно данных для расчета DTI"
-            // binding.dtiInfoText.visibility = View.VISIBLE
+            chart.visibility = View.GONE
             return
         }
-        chart.visibility = View.VISIBLE // Показываем чарт, если скрывали
+        chart.visibility = View.VISIBLE
 
-        // Рассчитываем платеж только если сумма и срок > 0 и ставка >= 0
+        // Рассчитываем платеж
         val estimatedMonthlyPayment = if (result.maxRecommendedAmount > 0 && result.maxRecommendedTerm > 0 && result.recommendedInterestRate >= 0) {
             calculateEstimatedMonthlyPayment(
                 result.maxRecommendedAmount,
@@ -219,11 +301,10 @@ class HomeFragment : Fragment() {
                 result.maxRecommendedTerm
             )
         } else {
-            0.0 // Не можем рассчитать платеж
+            0.0
         }
 
         val paymentFloat = estimatedMonthlyPayment.toFloat()
-        // Оставшийся доход после платежа (не может быть меньше 0)
         val remainingAfterPaymentFloat = maxOf(0f, availableIncome.toFloat() - paymentFloat)
 
         val entries = ArrayList<PieEntry>()
@@ -233,10 +314,8 @@ class HomeFragment : Fragment() {
         if (remainingAfterPaymentFloat > 0) {
             entries.add(PieEntry(remainingAfterPaymentFloat, "Доступный доход"))
         } else if (paymentFloat <= 0) {
-            // Если и платеж 0, и остаток 0, покажем весь доступный доход
             entries.add(PieEntry(availableIncome.toFloat(), "Доступный доход"))
         }
-
 
         if (entries.isEmpty()) {
             Log.w("HomeFragment", "No entries for PieChart.")
@@ -244,27 +323,26 @@ class HomeFragment : Fragment() {
             return
         }
 
-        val dataSet = PieDataSet(entries, "") // Убираем label для dataSet, т.к. есть легенда
+        val dataSet = PieDataSet(entries, "")
         dataSet.colors = listOf(
             ContextCompat.getColor(requireContext(), R.color.chart_debt),
             ContextCompat.getColor(requireContext(), R.color.chart_income)
         )
-        dataSet.sliceSpace = 2f // Небольшой отступ между секторами
+        dataSet.sliceSpace = 2f
 
         val data = PieData(dataSet)
-        data.setValueFormatter(PercentFormatter(chart)) // Формат в процентах
-        data.setValueTextSize(12f) // Уменьшим размер текста на секторах
-        data.setValueTextColor(Color.BLACK) // Цвет текста на секторах
+        data.setValueFormatter(PercentFormatter(chart))
+        data.setValueTextSize(12f)
+        data.setValueTextColor(Color.BLACK)
 
         chart.apply {
             this.data = data
             description.isEnabled = false
             isDrawHoleEnabled = true
             setHoleColor(Color.TRANSPARENT)
-            holeRadius = 50f // Размер отверстия
-            transparentCircleRadius = 55f // Размер прозрачного круга вокруг отверстия
+            holeRadius = 50f
+            transparentCircleRadius = 55f
 
-            // Настройка легенды
             legend.isEnabled = true
             legend.verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.BOTTOM
             legend.horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
@@ -273,34 +351,29 @@ class HomeFragment : Fragment() {
             legend.textSize = 12f
             legend.textColor = ContextCompat.getColor(requireContext(), R.color.primary_text)
 
-
-            setEntryLabelColor(Color.BLACK) // Цвет названий секторов (если они видны)
+            setEntryLabelColor(Color.BLACK)
             setEntryLabelTextSize(10f)
-            setUsePercentValues(true) // Говорим чарту использовать проценты
+            setUsePercentValues(true)
 
             setDrawCenterText(true)
             val dtiPercentage = if (income > 0) (paymentFloat / income) * 100 else 0f
-            centerText = String.format(Locale.US, "DTI\n%.1f%%", dtiPercentage) // Текст в центре
-            setCenterTextSize(16f) // Размер текста в центре
+            centerText = String.format(Locale.US, "DTI\n%.1f%%", dtiPercentage)
+            setCenterTextSize(16f)
             setCenterTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text))
 
-
             animateY(1400, Easing.EaseInOutQuad)
-            invalidate() // Обновляем чарт
+            invalidate()
         }
     }
 
-    // Улучшенная функция расчета с проверками
     private fun calculateEstimatedMonthlyPayment(
         principal: Int,
         annualInterestRate: Double,
         termInMonths: Int
     ): Double {
-        // Проверка входных данных
         if (principal <= 0 || termInMonths <= 0 || annualInterestRate < 0) {
             return 0.0
         }
-        // Если ставка 0%, расчет упрощается
         if (annualInterestRate == 0.0) {
             return principal.toDouble() / termInMonths
         }
@@ -308,32 +381,28 @@ class HomeFragment : Fragment() {
         val monthlyRate = annualInterestRate / 100.0 / 12.0
         val powerTerm = Math.pow(1.0 + monthlyRate, termInMonths.toDouble())
 
-        // Проверка деления на ноль (маловероятно при rate > 0, но все же)
         if (powerTerm - 1 == 0.0) return 0.0
 
         return principal * monthlyRate * powerTerm / (powerTerm - 1)
     }
 
     private fun getRiskColor(riskLevel: String?): Int {
-        // Добавляем проверку на null или неизвестное значение
-        val colorResId = when (riskLevel?.lowercase(Locale.ROOT)) { // Сравниваем в нижнем регистре
+        val colorResId = when (riskLevel?.lowercase(Locale.ROOT)) {
             "низкий" -> R.color.risk_low
             "средний" -> R.color.risk_medium
             "высокий" -> R.color.risk_high
             "очень высокий" -> R.color.risk_very_high
-            else -> R.color.risk_medium // Цвет по умолчанию для неизвестных значений
+            else -> R.color.risk_medium
         }
         return ContextCompat.getColor(requireContext(), colorResId)
     }
 
-    // Используем NumberFormat для лучшего форматирования чисел с разделителями
     private fun formatNumber(number: Int): String {
         return NumberFormat.getNumberInstance(Locale("ru", "RU")).format(number)
     }
 
-
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null // Важно для избежания утечек памяти
+        _binding = null
     }
 }

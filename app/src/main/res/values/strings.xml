@@ -1,7 +1,35 @@
 <resources>
-    <string name="app_name">credit-score</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="app_name">Кредитный Скоринг</string>
+    <string name="title_home">Скоринг</string>
+    <string name="title_dashboard">Статистика</string>
+    <string name="title_notifications">Профиль</string>
     <string name="gemini_api_key">AIzaSyCl8qzbbpDJ-ltNr_86SSFMTnbC6vhXvCk</string>
+    
+    <!-- Новые строки для формы ввода -->
+    <string name="input_form_title">Введите данные для анализа</string>
+    <string name="inn_hint">ИНН заявителя</string>
+    <string name="amount_hint">Запрашиваемая сумма (сом)</string>
+    <string name="term_hint">Срок кредита (месяцев)</string>
+    <string name="purpose_hint">Цель кредита</string>
+    <string name="analyze_button">Анализировать заявку</string>
+    <string name="new_request_button">Новая заявка</string>
+    
+    <!-- Строки для результатов -->
+    <string name="results_title">Результаты кредитного скоринга</string>
+    <string name="score_title">Общий скоринговый балл</string>
+    <string name="risk_level">Уровень риска:</string>
+    <string name="applicant_info">Основная информация</string>
+    <string name="full_name">ФИО:</string>
+    <string name="employment">Статус занятости:</string>
+    <string name="income">Доход:</string>
+    <string name="credit_history">Кредитная история:</string>
+    <string name="recommended_terms">Рекомендуемые условия кредита</string>
+    <string name="max_amount">Максимальная сумма:</string>
+    <string name="max_term">Максимальный срок:</string>
+    <string name="interest_rate">Процентная ставка:</string>
+    <string name="dti_ratio">Соотношение платежа к доходу</string>
+    <string name="justification">Обоснование решения</string>
+    <string name="strengths">Сильные стороны</string>
+    <string name="weaknesses">Слабые стороны</string>
+    <string name="recommendations">Рекомендации</string>
 </resources>
