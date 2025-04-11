@@ -23,7 +23,6 @@
 
     <!-- Фоновые цвета -->
     <color name="background">#F5F5F5</color>
-    <color name="card_background">#FFFFFF</color>
     <color name="divider">#E0E0E0</color>
 
     <color name="green_primary_dark">#388E3C</color>
@@ -31,4 +30,47 @@
     <color name="card_background_dark">#121212</color>
     <color name="text_primary_dark">#E0E0E0</color>
     <color name="text_secondary_dark">#B0B0B0</color>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+
+    <!-- Material Design 2.0 Color Attributes -->
+    <color name="primary">@color/purple_500</color>
+    <color name="primary_variant">@color/purple_700</color>
+    <color name="secondary">@color/teal_200</color>
+    <color name="secondary_variant">@color/teal_700</color>
+    <color name="card_background">@color/white</color>
+
+    <!-- Grey Colors -->
+    <color name="grey_200">#EEEEEE</color>
+    <color name="grey_300">#E0E0E0</color>
+
+    <!-- Gradient Colors -->
+    <color name="card_gradient_start">#3F51B5</color>
+    <color name="card_gradient_end">#5C6BC0</color>
+
+    <!-- Gauge Colors -->
+    <color name="gauge_background">#EEEEEE</color>
+    <color name="gauge_indicator">@color/colorPrimary</color>
+
+    <!-- App Theme Colors -->
+    <color name="background_color">#F5F5F5</color>
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
+
+    <!-- Credit Score Risk Colors -->
+    <color name="risk_low">#4CAF50</color>
+    <color name="risk_medium">#FFC107</color>
+    <color name="risk_high">#FF5722</color>
+    <color name="risk_very_high">#F44336</color>
+
+    <!-- Chart Colors -->
+    <color name="chart_debt">#F44336</color>     <!-- Красный для платежа по кредиту -->
+    <color name="chart_expenses">#FF9800</color> <!-- Оранжевый для расходов -->
+    <color name="chart_income">#4CAF50</color>   <!-- Зеленый для свободного дохода -->
+
+    <!-- Item Colors -->
+    <color name="strength_color">#4CAF50</color>
+    <color name="weakness_color">#F44336</color>
+    <color name="recommendation_color">#2196F3</color>
 </resources>
