@@ -11,6 +11,25 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
 
+    <!-- Material Design 2.0 Color Attributes -->
+    <color name="primary">@color/purple_500</color>
+    <color name="primary_variant">@color/purple_700</color>
+    <color name="secondary">@color/teal_200</color>
+    <color name="secondary_variant">@color/teal_700</color>
+    <color name="card_background">@color/white</color>
+
+    <!-- Grey Colors -->
+    <color name="grey_200">#EEEEEE</color>
+    <color name="grey_300">#E0E0E0</color>
+
+    <!-- Gradient Colors -->
+    <color name="card_gradient_start">#3F51B5</color>
+    <color name="card_gradient_end">#5C6BC0</color>
+
+    <!-- Gauge Colors -->
+    <color name="gauge_background">#EEEEEE</color>
+    <color name="gauge_indicator">@color/colorPrimary</color>
+
     <!-- App Theme Colors -->
     <color name="background_color">#F5F5F5</color>
     <color name="primary_text">#212121</color>
@@ -21,9 +40,6 @@
     <color name="risk_medium">#FFC107</color>
     <color name="risk_high">#FF5722</color>
     <color name="risk_very_high">#F44336</color>
-
-    <!-- Gauge Colors -->
-    <color name="gauge_background">#EEEEEE</color>
 
     <!-- Chart Colors -->
     <color name="chart_debt">#F44336</color>     <!-- Красный для платежа по кредиту -->

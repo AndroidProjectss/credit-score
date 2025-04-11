@@ -1,11 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Кредитный Скоринг</string>
     <string name="title_home">Скоринг</string>
     <string name="title_dashboard">Статистика</string>
     <string name="title_notifications">Профиль</string>
-    <string name="gemini_api_key">AIzaSyCl8qzbbpDJ-ltNr_86SSFMTnbC6vhXvCk</string>
+    <string name="gemini_api_key">AIzaSyA5k5m8WY4ziIcZS6yzmXTP2ewOXM2CsdU</string>
     
-    <!-- Новые строки для формы ввода -->
+    <!-- Строки для формы ввода -->
     <string name="input_form_title">Введите данные для анализа</string>
     <string name="inn_hint">ИНН заявителя</string>
     <string name="amount_hint">Запрашиваемая сумма (сом)</string>
@@ -13,6 +14,10 @@
     <string name="purpose_hint">Цель кредита</string>
     <string name="analyze_button">Анализировать заявку</string>
     <string name="new_request_button">Новая заявка</string>
+    <string name="scan_id_button">Сканировать ID</string>
+    <string name="scan_salary_button">Сканировать справку</string>
+    <string name="income_hint">Ежемесячный доход (сом)</string>
+    <string name="back_to_form_button">Вернуться к форме</string>
     
     <!-- Строки для результатов -->
     <string name="results_title">Результаты кредитного скоринга</string>
@@ -28,6 +33,7 @@
     <string name="max_term">Максимальный срок:</string>
     <string name="interest_rate">Процентная ставка:</string>
     <string name="dti_ratio">Соотношение платежа к доходу</string>
+    <string name="dti_description">DTI (Debt-to-Income Ratio) - отношение ежемесячного платежа к доходу. Рекомендуемое значение - не более 40%</string>
     <string name="justification">Обоснование решения</string>
     <string name="strengths">Сильные стороны</string>
     <string name="weaknesses">Слабые стороны</string>

@@ -17,8 +17,8 @@ import com.example.credit_score.data.MockDatabase
 import com.example.credit_score.data.UserData
 import com.example.credit_score.databinding.FragmentHomeBinding
 import com.example.credit_score.remote.gemini.SearchQuery
-import com.example.creditscore.remote.gemini.GeminiApiClientScoring
 import com.example.creditscore.remote.gemini.CreditApplicationData
+import com.example.creditscore.remote.gemini.GeminiApiClientScoring
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet

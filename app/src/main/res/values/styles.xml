@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BottomNavigationView стили переносим в themes.xml -->
+    <style name="ThemeOverlay.CreditScore.BottomNavigationView" parent="">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSecondary">@color/secondary</item>
+    </style>
+</resources>
