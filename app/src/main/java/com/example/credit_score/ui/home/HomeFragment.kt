@@ -16,9 +16,9 @@ import com.example.credit_score.R
 import com.example.credit_score.data.MockDatabase
 import com.example.credit_score.data.UserData
 import com.example.credit_score.databinding.FragmentHomeBinding
+import com.example.credit_score.remote.gemini.GeminiApiClientScoring
 import com.example.credit_score.remote.gemini.SearchQuery
-import com.example.creditscore.remote.gemini.CreditApplicationData
-import com.example.creditscore.remote.gemini.GeminiApiClientScoring
+import com.example.credit_score.remote.gemini.CreditApplicationData
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
@@ -26,6 +26,7 @@ import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.PercentFormatter
 import java.text.NumberFormat
 import java.util.Locale
+import com.example.credit_score.ui.home.HomeFragmentArgs
 
 class HomeFragment : Fragment() {
 
@@ -47,23 +48,28 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Gemini API client with API key
+        // Инициализация Gemini API клиента
         val apiKey = getString(R.string.gemini_api_key)
         geminiApiClient = GeminiApiClientScoring(apiKey)
+
+        // Получение ИНН из аргументов
+        arguments?.let {
+            val inn = HomeFragmentArgs.fromBundle(it).inn
+            if (inn.isNotEmpty()) {
+                binding.innInput.setText(inn)
+            }
+        }
 
         setupInputValidation()
         setupListeners()
     }
-    
     private fun setupInputValidation() {
-        // Валидация ИНН - должен быть 14 символов
         binding.innInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 val inn = s.toString()
                 if (inn.length == 14) {
-                    // Проверяем, есть ли ИНН в базе данных
                     val userData = MockDatabase.getUserByInn(inn)
                     if (userData != null) {
                         currentUserData = userData
@@ -77,8 +83,20 @@ class HomeFragment : Fragment() {
                 }
             }
         })
-    }
 
+        // Проверяем ИНН сразу, если он был установлен
+        val inn = binding.innInput.text.toString()
+        if (inn.length == 14) {
+            val userData = MockDatabase.getUserByInn(inn)
+            if (userData != null) {
+                currentUserData = userData
+                Toast.makeText(context, "Пользователь найден: ${userData.fullName}", Toast.LENGTH_SHORT).show()
+            } else {
+                currentUserData = null
+                Toast.makeText(context, "Пользователь с таким ИНН не найден", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     private fun setupListeners() {
         binding.btnAnalyze.setOnClickListener {
             // Валидация введенных данных
@@ -174,12 +192,19 @@ class HomeFragment : Fragment() {
         
         return true
     }
-    
+
     private fun resetForm() {
-        binding.innInput.text?.clear()
+        val currentInn = binding.innInput.text.toString()
         binding.amountInput.text?.clear()
         binding.termInput.text?.clear()
         binding.purposeInput.text?.clear()
+        // Сохраняем ИНН, если он был передан
+        val innFromArgs = arguments?.let { HomeFragmentArgs.fromBundle(it).inn } ?: ""
+        if (innFromArgs.isNotEmpty()) {
+            binding.innInput.setText(currentInn)
+        } else {
+            binding.innInput.text?.clear()
+        }
     }
 
     private fun createCreditApplicationFromUserData(

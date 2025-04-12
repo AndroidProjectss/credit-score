@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.credit_score.CameraActivity
 import com.example.credit_score.R
@@ -31,6 +32,8 @@ import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
 import java.io.IOException
+import androidx.navigation.fragment.findNavController
+import com.example.credit_score.ui.dashboard.DashboardFragmentDirections
 
 class DashboardFragment : Fragment() {
 
@@ -308,24 +311,43 @@ class DashboardFragment : Fragment() {
             resultBuilder.append("Номер паспорта: ").append(passportData.passportNumber)
         }
 
-        // Обновляем содержимое результата
         binding.tvGarbageType.text = "Анализ паспорта:"
         binding.tvInstructions.text = resultBuilder.toString().trim()
 
-        // Анимация появления результатов
         val slideUpAnimation = AnimationUtils.loadAnimation(requireContext(), R.anim.slide_up)
         binding.cardResult.visibility = View.VISIBLE
         binding.cardResult.startAnimation(slideUpAnimation)
 
-        // Показываем информацию о результате в Toast
         Toast.makeText(
             requireContext(),
             "ИНН: ${passportData.inn}, ФИО: ${passportData.fullName}",
             Toast.LENGTH_LONG
         ).show()
-    }
 
-    override fun onDestroyView() {
+        // Передача ИНН в HomeFragment
+        if (passportData.inn.isNotEmpty()) {
+            if (isAdded && !isDetached && view != null) {
+                try {
+                    val action = DashboardFragmentDirections.actionNavigationDashboardToNavigationHome(passportData.inn)
+                    findNavController().navigate(action)
+                } catch (e: IllegalStateException) {
+                    Log.e(TAG, "Navigation failed: Fragment not associated with NavController", e)
+                    Toast.makeText(
+                        requireContext(),
+                        "Не удалось перейти на страницу с данными. Попробуйте снова.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                Log.w(TAG, "Cannot navigate: Fragment is not in a valid state")
+                Toast.makeText(
+                    requireContext(),
+                    "Фрагмент не готов для перехода. Попробуйте снова.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }    override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }

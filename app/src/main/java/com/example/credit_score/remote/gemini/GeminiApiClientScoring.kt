@@ -1,11 +1,8 @@
-package com.example.creditscore.remote.gemini
+package com.example.credit_score.remote.gemini
 
 import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
-import com.example.credit_score.remote.gemini.SearchQuery
-import com.example.visualsearch.remote.gemini.GeminiResponse
-import com.example.visualsearch.remote.gemini.GeminiService
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
